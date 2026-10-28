@@ -26,14 +26,18 @@ os.environ.setdefault('VK_ICD_FILENAMES', '/root/egl_icd.json')
 ROOT = os.environ.get('TDMPC2_ROOT', '/root/tdmpc2')
 sys.path.insert(0, os.path.join(ROOT, 'tdmpc2'))
 hydra.utils.get_original_cwd = lambda: ROOT
+# hydra 的 config_path 是相对当前工作目录解析的，必须先切到仓库根目录
+os.chdir(ROOT)
 
-from hydra import compose, initialize
+from hydra import compose, initialize_config_dir
 from common.parser import parse_cfg
 
 CKPT = os.environ.get('CKPT', os.path.join(ROOT, 'logs/stack-cube/1/ms3_stack_4m_ws/models/final.pt'))
 EPISODES = int(os.environ.get('EPISODES', '20'))
 
-with initialize(config_path='tdmpc2', version_base=None):
+# initialize(config_path=...) 是相对脚本文件解析的，只在 cwd == 仓库根时好用；
+# 改用绝对 config 目录后可从任意目录运行
+with initialize_config_dir(config_dir=os.path.join(ROOT, 'tdmpc2'), version_base=None):
     cfg = parse_cfg(compose(config_name='config', overrides=[
         'task=stack-cube', 'model_size=5', 'steps=2000000', 'episodic=false',
         'compile=false', 'enable_wandb=false', 'save_video=false', 'exp_name=final_eval_ms3']))
