@@ -88,7 +88,7 @@ class VideoRecorder:
 
 	def init(self, env, enabled=True):
 		self.frames = []
-		self.enabled = self._save_dir and self._wandb and enabled
+		self.enabled = bool(self._save_dir) and enabled
 		self.record(env)
 
 	def record(self, env):
@@ -96,11 +96,18 @@ class VideoRecorder:
 			self.frames.append(env.render())
 
 	def save(self, step, key='videos/eval_video'):
-		if self.enabled and len(self.frames) > 0:
-			frames = np.stack(self.frames)
-			return self._wandb.log(
-				{key: self._wandb.Video(frames.transpose(0, 3, 1, 2), fps=self.fps, format='mp4')}, step=step
-			)
+		if not (self.enabled and len(self.frames) > 0):
+		    return
+		frames = np.stack(self.frames)
+		fp = self._save_dir / f'eval_{int(step)}.mp4'
+		import imageio
+		imageio.mimsave(str(fp), frames, fps=self.fps)
+		print('Saved video:', fp)
+		if self._wandb:
+		    self._wandb.log(
+		        {key: self._wandb.Video(frames.transpose(0, 3, 1, 2), fps=self.fps, format='mp4')},
+		        step=step,
+		    )
 
 
 class Logger:
@@ -119,10 +126,8 @@ class Logger:
 		self.entity = cfg.get("wandb_entity", "none")
 		if not cfg.enable_wandb or self.project == "none" or self.entity == "none":
 			print(colored("Wandb disabled.", "blue", attrs=["bold"]))
-			cfg.save_agent = False
-			cfg.save_video = False
 			self._wandb = None
-			self._video = None
+			self._video = VideoRecorder(cfg, None) if cfg.save_video else None
 			return
 		os.environ["WANDB_SILENT"] = "true" if cfg.wandb_silent else "false"
 		import wandb
@@ -233,8 +238,8 @@ class Logger:
 				_d[category + "/" + k] = v
 			self._wandb.log(_d, step=d[xkey])
 		if category == "eval" and self._save_csv:
-			keys = ["step", "episode_reward"]
-			self._eval.append(np.array([d[keys[0]], d[keys[1]]]))
+			keys = ["step", "episode_reward", "episode_success"]
+			self._eval.append(np.array([d[k] for k in keys]))
 			pd.DataFrame(np.array(self._eval)).to_csv(
 				self._log_dir / "eval.csv", header=keys, index=None
 			)

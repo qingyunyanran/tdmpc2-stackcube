@@ -38,7 +38,8 @@ class WorldModel(nn.Module):
 	def init(self):
 		# Create params
 		self._detach_Qs_params = TensorDictParams(self._Qs.params.data, no_convert=True)
-		self._target_Qs_params = TensorDictParams(self._Qs.params.data.clone(), no_convert=True)
+		if not hasattr(self, "_target_Qs_params"):
+			self._target_Qs_params = TensorDictParams(self._Qs.params.data.clone(), no_convert=True)
 
 		# Create modules
 		with self._detach_Qs_params.data.to("meta").to_module(self._Qs.module):
@@ -51,6 +52,7 @@ class WorldModel(nn.Module):
 		self._detach_Qs.__dict__["params"] = self._detach_Qs_params
 		delattr(self._target_Qs, "params")
 		self._target_Qs.__dict__["params"] = self._target_Qs_params
+		self._target_Qs.train(False)
 
 	def __repr__(self):
 		repr = 'TD-MPC2 World Model\n'
@@ -67,15 +69,7 @@ class WorldModel(nn.Module):
 		return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 	def to(self, *args, **kwargs):
-		# Meta tensors (detach/target Q copies) cannot be moved with the
-		# standard .to(); they are parameter-less shells whose real params
-		# are attached via TensorDictParams. Skip them and rebuild.
-		for p in self.parameters():
-			if not p.is_meta:
-				p.data = p.data.to(*args, **kwargs)
-		for b in self.buffers():
-			if not b.is_meta:
-				b.data = b.data.to(*args, **kwargs)
+		super().to(*args, **kwargs)
 		self.init()
 		return self
 

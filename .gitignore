@@ -1,20 +1,9 @@
-﻿__pycache__/
-*.pyc
-_dbg*.py
-checkpoints/
-logs_run/
-wandb/
-data/
-*.log
+__pycache__/
+*.py[cod]
 *.pt
 *.pth
-*.ckpt
-*.h5
-*.npz
-*.zip
-*.mp4
-.idea/
-.vscode/
+*.log
 
-tdmpc2/dbg_err.txt
-
+# training outputs (checkpoints / videos / tensorboard are large; only eval.csv is tracked)
+logs/
+outputs/

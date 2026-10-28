@@ -2,7 +2,7 @@ import os
 os.environ['MUJOCO_GL'] = os.getenv("MUJOCO_GL", 'egl')
 os.environ['LAZY_LEGACY_OP'] = '0'
 os.environ['TORCHDYNAMO_INLINE_INBUILT_NN_MODULES'] = "1"
-os.environ['TORCH_LOGS'] = "+recompiles"
+# NOTE: TORCH_LOGS is left untouched; set it in the shell if needed.
 import warnings
 warnings.filterwarnings('ignore')
 import torch
@@ -50,10 +50,16 @@ def train(cfg: dict):
 	print(colored('Work dir:', 'yellow', attrs=['bold']), cfg.work_dir)
 
 	trainer_cls = OfflineTrainer if cfg.multitask else OnlineTrainer
+	env = make_env(cfg)
+	agent = TDMPC2(cfg)
+	_resume = getattr(cfg, 'resume', '')
+	if _resume not in (None, '', True):
+		print(colored(f'Warm start from: {_resume}', 'yellow', attrs=['bold']))
+		agent.load(_resume)
 	trainer = trainer_cls(
 		cfg=cfg,
-		env=make_env(cfg),
-		agent=TDMPC2(cfg),
+		env=env,
+		agent=agent,
 		buffer=Buffer(cfg),
 		logger=Logger(cfg),
 	)

@@ -13,6 +13,7 @@ eval_freq: 50000
 
 # training
 steps: 10_000_000
+resume: ''
 batch_size: 256
 reward_coef: 0.1
 value_coef: 0.1
@@ -72,6 +73,8 @@ save_csv: true
 
 # misc
 compile: true
+compile_update: true
+compile_update_mode: default
 save_video: true
 save_agent: true
 seed: 1

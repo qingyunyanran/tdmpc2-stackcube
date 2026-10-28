@@ -1,4 +1,5 @@
 from copy import deepcopy
+import os
 import warnings
 
 import gymnasium as gym
@@ -17,6 +18,11 @@ try:
 	from envs.maniskill import make_env as make_maniskill_env
 except:
 	make_maniskill_env = missing_dependencies
+try:
+	from envs.maniskill3 import make_env as make_maniskill3_env
+except:
+	make_maniskill3_env = missing_dependencies
+
 try:
 	from envs.metaworld import make_env as make_metaworld_env
 except:
@@ -61,28 +67,35 @@ def make_env(cfg):
 	"""
 	try:
 		gym.logger.set_level(40)
-	except AttributeError:
-		gym.logger.min_level = 40
+	except AttributeError:  # gymnasium >= 1.0
+		pass
 	if cfg.multitask:
 		env = make_multitask_env(cfg)
 
 	else:
 		env = None
-		for fn in [make_dm_control_env, make_maniskill_env, make_metaworld_env, make_myosuite_env, make_mujoco_env]:
+		fns = [make_dm_control_env, make_maniskill_env, make_maniskill3_env,
+			make_metaworld_env, make_myosuite_env, make_mujoco_env]
+		# Explicit backend switch: MS_BACKEND=ms3 / ms2 pins the ManiSkill version
+		# (otherwise each ManiSkill adapter rejects tasks it does not know).
+		_backend = os.environ.get('MS_BACKEND', '').lower()
+		if _backend == 'ms3':
+			fns = [make_maniskill3_env]
+		elif _backend == 'ms2':
+			fns = [make_maniskill_env]
+		for fn in fns:
 			try:
 				env = fn(cfg)
 			except ValueError:
 				pass
 		if env is None:
 			raise ValueError(f'Failed to make environment "{cfg.task}": please verify that dependencies are installed and that the task exists.')
-		if not cfg.task.startswith('ms-'):
-			env = TensorWrapper(env)
+		env = TensorWrapper(env)
 	try: # Dict
 		cfg.obs_shape = {k: v.shape for k, v in env.observation_space.spaces.items()}
 	except: # Box
 		cfg.obs_shape = {cfg.get('obs', 'state'): env.observation_space.shape}
 	cfg.action_dim = env.action_space.shape[0]
-	cfg.episode_length = getattr(env, 'max_episode_steps',
-	                             getattr(env, '_max_episode_steps', 50))
+	cfg.episode_length = env.max_episode_steps
 	cfg.seed_steps = max(1000, 5*cfg.episode_length)
 	return env

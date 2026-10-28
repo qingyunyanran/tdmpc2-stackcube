@@ -115,7 +115,11 @@ class OnlineTrainer(Trainer):
 			if self._step >= self.cfg.seed_steps:
 				if self._step == self.cfg.seed_steps:
 					num_updates = self.cfg.seed_steps
-					print('Pretraining agent on seed data...')
+					if getattr(self.cfg, 'resume', '') not in (None, '', True):
+						num_updates = 1
+						print('Warm start: skip seed pretraining.')
+					else:
+						print('Pretraining agent on seed data...')
 				else:
 					num_updates = 1
 				for _ in range(num_updates):
